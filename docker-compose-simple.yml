@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # Etcd for cluster coordination (optional for simple setup)
+  etcd:
+    image: bitnami/etcd:latest
+    container_name: citus-etcd
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    volumes:
+      - etcd_data:/bitnami/etcd
+    networks:
+      - citus-network
+
+  # Coordinator node
+  coordinator:
+    image: citusdata/citus:12.1.0
+    container_name: citus-coordinator
+    environment:
+      - POSTGRES_DB=citus
+      - POSTGRES_USER=citus
+      - POSTGRES_PASSWORD=citus123
+    ports:
+      - "5432:5432"
+    volumes:
+      - coordinator_data:/var/lib/postgresql/data
+    depends_on:
+      - etcd
+    networks:
+      - citus-network
+    command: ["postgres", "-c", "shared_preload_libraries=citus"]
+
+  # Worker node 1
+  worker1:
+    image: citusdata/citus:12.1.0
+    container_name: citus-worker1
+    environment:
+      - POSTGRES_DB=citus
+      - POSTGRES_USER=citus
+      - POSTGRES_PASSWORD=citus123
+    ports:
+      - "5433:5432"
+    volumes:
+      - worker1_data:/var/lib/postgresql/data
+    depends_on:
+      - coordinator
+    networks:
+      - citus-network
+    command: ["postgres", "-c", "shared_preload_libraries=citus"]
+
+  # Worker node 2
+  worker2:
+    image: citusdata/citus:12.1.0
+    container_name: citus-worker2
+    environment:
+      - POSTGRES_DB=citus
+      - POSTGRES_USER=citus
+      - POSTGRES_PASSWORD=citus123
+    ports:
+      - "5434:5432"
+    volumes:
+      - worker2_data:/var/lib/postgresql/data
+    depends_on:
+      - coordinator
+    networks:
+      - citus-network
+    command: ["postgres", "-c", "shared_preload_libraries=citus"]
+
+  # HAProxy for load balancing
+  haproxy:
+    image: haproxy:2.4
+    container_name: citus-haproxy
+    ports:
+      - "5000:5000"
+      - "7000:7000"
+    volumes:
+      - ./haproxy-simple.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - coordinator
+      - worker1
+      - worker2
+    networks:
+      - citus-network
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: citus-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@citus.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    ports:
+      - "8080:80"
+    depends_on:
+      - coordinator
+    networks:
+      - citus-network
+
+volumes:
+  etcd_data:
+  coordinator_data:
+  worker1_data:
+  worker2_data:
+
+networks:
+  citus-network:
+    driver: bridge
