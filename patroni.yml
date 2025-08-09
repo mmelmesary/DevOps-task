@@ -1,37 +1,44 @@
-scope: ${PATRONI_SCOPE}
-name: ${PATRONI_NAME}
+# scope: ${PATRONI_SCOPE}
+# name: ${PATRONI_NAME}
 
-etcd3:
-  hosts: ${PATRONI_ETCD_HOSTS}
+# logging:
+#   level: DEBUG
 
-postgresql:
-  listen: 0.0.0.0:5432
-  connect_address: ${PATRONI_NAME}:5432
-  data_dir: /var/lib/postgresql/data
-  authentication:
-    superuser:
-      username: ${POSTGRES_USER}
-      password: ${POSTGRES_PASSWORD}
-    replication:
-      username: replicator
-      password: replpass
-  parameters:
-    shared_preload_libraries: 'citus'
+# etcd3:
+#   hosts: ${PATRONI_ETCD3_HOSTS}
 
-bootstrap:
-  dcs:
-    postgresql:
-      parameters:
-        shared_preload_libraries: 'citus'
-  initdb:
-    - encoding: UTF8
-    - data-checksums
-  users:
-    ${POSTGRES_USER}:
-      password: ${POSTGRES_PASSWORD}
-      options:
-        - createrole
-        - createdb
+# restapi:
+#   listen: 0.0.0.0:8008
+#   connect_address: ${PATRONI_NAME}:8008
 
-tags:
-  replica: true
+# postgresql:
+#   listen: 0.0.0.0:5432
+#   connect_address: ${PATRONI_NAME}:5432
+#   data_dir: /var/lib/postgresql/data
+#   authentication:
+#     superuser:
+#       username: ${POSTGRES_USER}
+#       password: ${POSTGRES_PASSWORD}
+#     replication:
+#       username: replicator
+#       password: replpass
+#   parameters:
+#     shared_preload_libraries: 'citus'
+
+# bootstrap:
+#   dcs:
+#     postgresql:
+#       parameters:
+#         shared_preload_libraries: 'citus'
+#   initdb:
+#     - encoding: UTF8
+#     - data-checksums
+#   users:
+#     ${POSTGRES_USER}:
+#       password: ${POSTGRES_PASSWORD}
+#       options:
+#         - createrole
+#         - createdb
+
+# tags:
+#   replica: true

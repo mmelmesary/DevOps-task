@@ -1,0 +1,32 @@
+scope: citus
+name: coordinator
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: coordinator:8008
+
+etcd3:
+  hosts: etcd:2379
+
+bootstrap:
+  dcs:
+    postgresql:
+      parameters:
+        shared_preload_libraries: citus
+    tags:
+      replica: false
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: coordinator:5432
+  data_dir: /var/lib/postgresql/data
+  parameters:
+    shared_preload_libraries: citus
+  pg_hba:
+    - host all all 0.0.0.0/0 trust
+
+tags:
+  replica: false

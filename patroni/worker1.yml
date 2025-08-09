@@ -1,0 +1,41 @@
+scope: citus
+name: worker1
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: worker1:8008
+
+etcd3:
+  hosts: etcd:2379
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: worker1:5432
+  data_dir: /var/lib/postgresql/data
+  authentication:
+    superuser:
+      username: citus
+      password: citus123
+    replication:
+      username: replicator
+      password: replpass
+  parameters:
+    shared_preload_libraries: citus
+
+bootstrap:
+  dcs:
+    postgresql:
+      parameters:
+        shared_preload_libraries: citus
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  users:
+    citus:
+      password: citus123
+      options:
+        - createrole
+        - createdb
+
+tags:
+  replica: true
