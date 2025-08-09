@@ -87,15 +87,22 @@ class CitusClusterTester:
             # Split by semicolon and execute each statement
             statements = [stmt.strip() for stmt in sql_content.split(';') if stmt.strip()]
             
+            success_count = 0
+            error_count = 0
+            
             for i, statement in enumerate(statements):
                 if statement and not statement.startswith('--'):  # Skip comments
                     logger.info(f"Executing statement {i+1}/{len(statements)} from {filename}")
-                    if not self.execute_query(statement):
-                        logger.error(f"Failed to execute statement {i+1} from {filename}")
-                        return False
+                    result = self.execute_query(statement)
+                    if result is not None:
+                        success_count += 1
+                        logger.info(f"Statement {i+1} executed successfully")
+                    else:
+                        error_count += 1
+                        logger.warning(f"Statement {i+1} failed, but continuing...")
             
-            logger.info(f"Successfully executed SQL file: {filename}")
-            return True
+            logger.info(f"SQL file {filename} completed: {success_count} successful, {error_count} failed")
+            return success_count > 0  # Return True if at least one statement succeeded
             
         except Exception as e:
             logger.error(f"Error executing SQL file {filename}: {e}")

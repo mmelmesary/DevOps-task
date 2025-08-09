@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Etcd for Patroni cluster coordination
   etcd:
     image: bitnami/etcd:latest
     container_name: citus-etcd
@@ -12,97 +11,70 @@ services:
     ports:
       - "2379:2379"
       - "2380:2380"
-    volumes:
-      - etcd_data:/bitnami/etcd
     networks:
       - citus-network
 
-  # Coordinator node with Patroni
   coordinator:
-    image: citusdata/citus:12.1.0
+    build: .
     container_name: citus-coordinator
     environment:
       - POSTGRES_DB=citus
       - POSTGRES_USER=citus
       - POSTGRES_PASSWORD=citus123
-      - PATRONI_SCOPE=citus-cluster
       - PATRONI_NAME=coordinator
+      - PATRONI_SCOPE=citus
       - PATRONI_ETCD_HOSTS=etcd:2379
-      - PATRONI_LOG_LEVEL=INFO
     ports:
       - "5432:5432"
     volumes:
       - coordinator_data:/var/lib/postgresql/data
-      - ./patroni.yml:/etc/patroni.yml
+      - ./patroni.yml:/etc/patroni.yml:ro
+      - ./sql:/docker-entrypoint-initdb.d:ro
     depends_on:
       - etcd
     networks:
       - citus-network
-    command: ["patroni", "/etc/patroni.yml"]
 
-  # Worker node 1 with Patroni
   worker1:
-    image: citusdata/citus:12.1.0
+    build: .
     container_name: citus-worker1
     environment:
       - POSTGRES_DB=citus
       - POSTGRES_USER=citus
       - POSTGRES_PASSWORD=citus123
-      - PATRONI_SCOPE=citus-cluster
       - PATRONI_NAME=worker1
+      - PATRONI_SCOPE=citus
       - PATRONI_ETCD_HOSTS=etcd:2379
-      - PATRONI_LOG_LEVEL=INFO
     ports:
       - "5433:5432"
     volumes:
       - worker1_data:/var/lib/postgresql/data
-      - ./patroni.yml:/etc/patroni.yml
+      - ./patroni.yml:/etc/patroni.yml:ro
     depends_on:
       - etcd
     networks:
       - citus-network
-    command: ["patroni", "/etc/patroni.yml"]
 
-  # Worker node 2 with Patroni
   worker2:
-    image: citusdata/citus:12.1.0
+    build: .
     container_name: citus-worker2
     environment:
       - POSTGRES_DB=citus
       - POSTGRES_USER=citus
       - POSTGRES_PASSWORD=citus123
-      - PATRONI_SCOPE=citus-cluster
       - PATRONI_NAME=worker2
+      - PATRONI_SCOPE=citus
       - PATRONI_ETCD_HOSTS=etcd:2379
-      - PATRONI_LOG_LEVEL=INFO
     ports:
       - "5434:5432"
     volumes:
       - worker2_data:/var/lib/postgresql/data
-      - ./patroni.yml:/etc/patroni.yml
+      - ./patroni.yml:/etc/patroni.yml:ro
     depends_on:
       - etcd
     networks:
       - citus-network
-    command: ["patroni", "/etc/patroni.yml"]
 
-  # HAProxy for load balancing
-  haproxy:
-    image: haproxy:2.4
-    container_name: citus-haproxy
-    ports:
-      - "5000:5000"
-      - "7000:7000"
-    volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    depends_on:
-      - coordinator
-      - worker1
-      - worker2
-    networks:
-      - citus-network
-
-  # pgAdmin for database management
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: citus-pgadmin
@@ -117,7 +89,6 @@ services:
       - citus-network
 
 volumes:
-  etcd_data:
   coordinator_data:
   worker1_data:
   worker2_data:
