@@ -29,7 +29,6 @@ services:
     volumes:
       - coordinator_data:/var/lib/postgresql/data
       - ./patroni.yml:/etc/patroni.yml:ro
-      - ./sql:/docker-entrypoint-initdb.d:ro
     depends_on:
       - etcd
     networks:
