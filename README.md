@@ -10,7 +10,7 @@ This project demonstrates a production-ready Citus (PostgreSQL) cluster deployme
 - **Real-time alerting** via Alertmanager to Slack
 - **Python client** for testing distributed operations
 
-*[Screenshot placeholder: Architecture diagram showing all components]*![alt text](image.png)
+   ![contienrs](./screenshots/containers.png)
 
 ## Architecture
 
@@ -93,7 +93,7 @@ python test_citus.py
 - Queries and displays data
 - Works seamlessly during failover
 
-![python output](./screenshots/python.png)
+   ![python output](./screenshots/python.png)
 
 ### Failover Testing
 
@@ -106,7 +106,7 @@ python test_citus.py
    - Patroni promotes coordinator-1 to leader
    - Python script continues working without changes
 
-![cluster-failover](./screenshots/failover.png)
+   ![cluster-failover](./screenshots/failover.png)
 
 
 ## Monitoring
