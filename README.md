@@ -52,8 +52,8 @@ This project demonstrates a production-ready Citus (PostgreSQL) cluster deployme
 ### 1. Clone Repository
 
 ```bash
-git clone <your-repo-url>
-cd <your-repo-dir>
+git https://github.com/mmelmesary/DevOps-task.git
+cd DevOps-task
 ```
 
 ### 2. Start the Cluster
