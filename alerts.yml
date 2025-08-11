@@ -1,0 +1,11 @@
+groups:
+  - name: node-health
+    rules:
+      - alert: NodeDown
+        expr: up{job=~"patroni_.*|postgres_exporter_.*"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node {{ $labels.instance }} is DOWN"
+          description: "The instance {{ $labels.instance }} in job {{ $labels.job }} has been unreachable for more than 30s."

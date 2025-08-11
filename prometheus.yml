@@ -1,0 +1,67 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'postgres_exporter_coordinator_1'
+    static_configs:
+      - targets: ['postgres_exporter_coordinator_1:9187']
+  
+  - job_name: 'postgres_exporter_coordinator_2'
+    static_configs:
+      - targets: ['postgres_exporter_coordinator_2:9187']
+    
+  - job_name: 'postgres_exporter_worker1_1'
+    static_configs:
+      - targets: ['postgres_exporter_worker1_1:9187']
+
+
+  - job_name: 'postgres_exporter_worker1_2'
+    static_configs:
+      - targets: ['postgres_exporter_worker1_2:9187']
+
+  - job_name: 'postgres_exporter_worker2_1'
+    static_configs:
+      - targets: ['postgres_exporter_worker2_1:9187']
+
+  - job_name: 'postgres_exporter_worker2_2'
+    static_configs:
+      - targets: ['postgres_exporter_worker2_2:9187']
+
+  - job_name: 'patroni_coordinator_1'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['coordinator-1:8008']
+
+  - job_name: 'patroni_coordinator_2'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['coordinator-2:8008']
+
+  - job_name: 'patroni_worker1_1'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['worker1-1:8008']
+
+  - job_name: 'patroni_worker1_2'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['worker1-2:8008']
+
+  - job_name: 'patroni_worker2_1'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['worker2-1:8008']
+
+  - job_name: 'patroni_worker2_2'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['worker2-2:8008']
+
+rule_files:
+  - "alerts.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "alertmanager:9093"

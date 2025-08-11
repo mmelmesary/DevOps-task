@@ -1,337 +1,170 @@
-# PostgreSQL Citus Cluster with High Availability
+# PostgreSQL Citus Cluster with High Availability & Monitoring
 
-This project implements a PostgreSQL Citus cluster with high availability using Docker Compose, Patroni for automatic failover, and HAProxy for load balancing.
+## Overview
 
-## 🏗️ Architecture
+This project demonstrates a production-ready Citus (PostgreSQL) cluster deployment with High Availability using Patroni, featuring:
+
+- **Automated leader election and failover** with Patroni
+- **Load balancing** through HAProxy
+- **Comprehensive monitoring** with Prometheus & Grafana
+- **Real-time alerting** via Alertmanager to Slack
+- **Python client** for testing distributed operations
+
+*[Screenshot placeholder: Architecture diagram showing all components]*![alt text](image.png)
+
+## Architecture
 
 ### Components
-- **1 Coordinator Node**: Handles query planning and coordination
-- **2 Worker Nodes**: Store distributed data shards
-- **Etcd**: Cluster coordination and leader election
-- **Patroni**: High availability management
-- **HAProxy**: Load balancing and health checks
-- **pgAdmin**: Database management interface
 
-### High Availability Features
-- **Automatic Failover**: Patroni manages leader election and failover
-- **Load Balancing**: HAProxy distributes connections across healthy nodes
-- **Health Monitoring**: Continuous health checks and automatic node removal
-- **Data Replication**: WAL streaming replication between nodes
+1. **Citus Cluster**
+   - Coordinator group: 1 Leader + 1 Standby
+   - Worker groups: 2 workers, each with Leader + Standby
+   - Patroni handles replication, failover, and leader election
 
-## 🚀 Quick Start
+2. **HAProxy**
+   - Routes traffic to current coordinator leader
+   - Ensures seamless client connections during failover
 
-### Prerequisites
+3. **Prometheus**
+   - Scrapes metrics from Patroni & PostgreSQL exporters
+   - Stores time-series data for monitoring
+
+4. **Alertmanager**
+   - Sends alerts to Slack when nodes go down
+   - Configurable alert routing and grouping
+
+5. **Grafana**
+   - Visualizes cluster health and database performance
+   - Pre-configured dashboards for PostgreSQL metrics
+
+6. **Python Client**
+   - Tests distributed table operations
+   - Validates cluster functionality
+
+## Prerequisites
+
 - Docker and Docker Compose
-- Python 3.7+
-- Git
+- Slack Incoming Webhook URL
+- Local machine with internet access
 
-### 1. Clone and Setup
+## Deployment
+
+### 1. Clone Repository
+
 ```bash
-git clone <repository-url>
-cd citus-cluster-ha
+git clone <your-repo-url>
+cd <your-repo-dir>
 ```
 
 ### 2. Start the Cluster
+
 ```bash
 docker-compose up -d
 ```
 
-### 3. Wait for Initialization
-The cluster takes 2-3 minutes to fully initialize. Monitor the logs:
+**Services started:**
+- Coordinator nodes (coordinator-1, coordinator-2)
+- Worker nodes (worker1-1, worker1-2, worker2-1, worker2-2)
+- HAProxy, Prometheus, Alertmanager, Grafana
+
+*[Screenshot placeholder: Docker containers running status]*
+
+### 3. Verify Cluster Status
+
 ```bash
-docker-compose logs -f
+docker exec -it coordinator-1 patronictl -c /etc/patroni.yml list
 ```
 
-### 4. Install Python Dependencies
-```bash
-pip install -r requirements.txt
-```
+Expected output shows leader/standby roles assigned correctly.
 
-### 5. Run the Test Script
-```bash
-python test_citus_cluster.py
-```
+![Patroni cluster status output](./screenshots/cluster.png)
 
-## 📊 Monitoring
-
-### Access Points
-- **HAProxy Stats**: http://localhost:7000
-- **pgAdmin**: http://localhost:8080 (admin@citus.com / admin123)
-- **Coordinator**: localhost:5432
-- **Worker1**: localhost:5433
-- **Worker2**: localhost:5434
-
-### Check Cluster Status
-```bash
-# Check Patroni cluster status
-docker exec citus-coordinator patronictl list
-
-# Check HAProxy stats
-curl http://localhost:7000
-
-# Check individual node status
-docker exec citus-coordinator patronictl show-config
-```
-
-## 📁 Project Structure
-
-```
-citus-cluster-ha/
-├── docker-compose.yml          # Multi-container orchestration
-├── patroni.yml                 # HA configuration for PostgreSQL
-├── haproxy.cfg                 # Load balancer configuration
-├── requirements.txt            # Python dependencies
-├── test_citus_cluster.py      # Main test script (uses SQL files)
-├── setup.sh                   # Automated setup script
-├── README.md                  # Comprehensive documentation
-├── QUICKSTART.md              # Quick start guide
-└── sql/                       # SQL files directory
-    ├── create_tables.sql      # Table creation and distribution
-    ├── insert_test_data.sql   # Test data insertion
-    └── queries.sql            # Test queries and verification
-```
-
-## 🧪 Testing
-
-### Manual Testing
-1. **Connect to Coordinator**:
-   ```bash
-   docker exec -it citus-coordinator psql -U citus -d citus
-   ```
-
-2. **Create Distributed Table**:
-   ```sql
-   CREATE TABLE test_table (id SERIAL PRIMARY KEY, data TEXT);
-   SELECT create_distributed_table('test_table', 'id');
-   ```
-
-3. **Insert Test Data**:
-   ```sql
-   INSERT INTO test_table (data) VALUES ('test1'), ('test2'), ('test3');
-   ```
-
-4. **Query Distributed Data**:
-   ```sql
-   SELECT * FROM test_table;
-   ```
-
-### Automated Testing
-The Python script (`test_citus_cluster.py`) uses separate SQL files for better organization:
-
-**Features:**
-- ✅ **Separation of Concerns**: SQL logic separated from Python code
-- ✅ **Professional Structure**: Uses dedicated SQL files for maintainability
-- ✅ **Comprehensive Testing**: Connection, table creation, data insertion, queries
-- ✅ **Health Checks**: Cluster status and distributed table verification
-- ✅ **Failure Recovery**: Simulates failures and tests recovery
-- ✅ **SQL File Management**: Executes SQL files with proper error handling
-
-**SQL Files Used:**
-- `sql/create_tables.sql` - Creates and distributes tables
-- `sql/insert_test_data.sql` - Inserts test data
-- `sql/queries.sql` - Runs comprehensive test queries
-
-## 🔧 Failure Simulation
-
-### Simulate Node Failure
-```bash
-# Stop a worker node
-docker-compose stop worker1
-
-# Check cluster status
-docker exec citus-coordinator patronictl list
-
-# Restart the node
-docker-compose start worker1
-```
-
-### Simulate Coordinator Failure
-```bash
-# Stop coordinator
-docker-compose stop coordinator
-
-# Check failover (should happen automatically)
-docker exec citus-worker1 patronictl list
-
-# Restart coordinator
-docker-compose start coordinator
-```
-
-## 📈 Performance Monitoring
-
-### Key Metrics to Monitor
-- **Connection Count**: Active connections per node
-- **Query Performance**: Response times for distributed queries
-- **Replication Lag**: WAL streaming delay
-- **Node Health**: Patroni cluster member status
-
-### Monitoring Commands
-```bash
-# Check replication status
-docker exec citus-coordinator psql -U citus -d citus -c "SELECT * FROM pg_stat_replication;"
-
-# Check distributed table statistics
-docker exec citus-coordinator psql -U citus -d citus -c "SELECT * FROM citus_stat_tenants;"
-
-# Monitor HAProxy stats
-watch -n 1 'curl -s http://localhost:7000 | grep -A 20 "postgres"'
-```
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **Cluster Not Starting**
-   ```bash
-   # Check etcd connectivity
-   docker exec citus-etcd etcdctl member list
-   
-   # Check Patroni logs
-   docker-compose logs coordinator
-   ```
-
-2. **Connection Failures**
-   ```bash
-   # Test direct connection
-   docker exec citus-coordinator psql -U citus -d citus -c "SELECT 1;"
-   
-   # Check HAProxy configuration
-   docker exec citus-haproxy haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg
-   ```
-
-3. **Data Distribution Issues**
-   ```bash
-   # Check worker node registration
-   docker exec citus-coordinator psql -U citus -d citus -c "SELECT * FROM citus_get_active_worker_nodes();"
-   
-   # Check distributed table placement
-   docker exec citus-coordinator psql -U citus -d citus -c "SELECT * FROM citus_tables;"
-   ```
-
-### Log Locations
-- **Patroni**: Container logs via `docker-compose logs`
-- **PostgreSQL**: `/var/lib/postgresql/data/pg_log/`
-- **HAProxy**: Container logs via `docker-compose logs haproxy`
-
-## 🏛️ Architecture Deep Dive
-
-### High Availability Strategy
-1. **Leader Election**: Patroni uses etcd for consensus
-2. **Automatic Failover**: Promotes replica when leader fails
-3. **Load Balancing**: HAProxy routes to healthy nodes
-4. **Health Checks**: Continuous monitoring of node status
-
-### Data Distribution
-- **Sharding**: Tables distributed across worker nodes
-- **Replication**: WAL streaming for data consistency
-- **Query Planning**: Coordinator routes queries to relevant shards
-- **Transaction Management**: Distributed transaction coordination
-
-### Network Topology
-```
-Client → HAProxy → Coordinator/Workers
-                ↓
-            Etcd (Cluster Coordination)
-```
-
-## 📚 Interview Questions & Answers
-
-### Architecture & Setup
-1. **How would you architect the Citus cluster for HA?**
-   - Use Patroni for automatic failover
-   - Implement load balancing with HAProxy
-   - Separate coordinator and worker nodes
-   - Use etcd for cluster coordination
-
-2. **Which components need to be replicated?**
-   - PostgreSQL data directories (WAL streaming)
-   - Configuration files (Patroni, HAProxy)
-   - Application connection strings
-
-3. **How would you handle metadata node failover?**
-   - Patroni automatically promotes replica to leader
-   - HAProxy detects failure and routes to healthy nodes
-   - Application reconnection logic handles temporary failures
-
-### Tools & Automation
-4. **Why Docker Compose?**
-   - Easy development and testing
-   - Consistent environment across machines
-   - Simple service orchestration
-   - Built-in networking and volume management
-
-5. **How would you monitor node health?**
-   - Patroni health checks via etcd
-   - HAProxy health monitoring
-   - Custom Python monitoring scripts
-   - Prometheus/Grafana for metrics
+## Testing
 
 ### Python Test Script
-6. **What PostgreSQL driver did you use?**
-   - `psycopg2-binary` for native PostgreSQL connectivity
-   - RealDictCursor for easier result handling
-   - Connection pooling for performance
 
-7. **How did you handle reconnection logic?**
-   - Retry mechanism with exponential backoff
-   - Connection state management
-   - Error handling for different failure types
+**Run the script:**
+```bash
+python test_citus.py
+```
 
-### Failure Testing & HA
-8. **How did you simulate node failure?**
-   - Stop containers with `docker-compose stop`
-   - Monitor failover with Patroni commands
-   - Verify data accessibility after recovery
+**Expected behavior:**
+- Inserts test data into distributed table
+- Queries and displays data
+- Works seamlessly during failover
 
-9. **What mechanisms does Citus offer for consistency?**
-   - WAL streaming replication
-   - Distributed transaction coordination
-   - Automatic shard rebalancing
-   - Metadata synchronization
+![python output](./screenshots/python.png)
 
-## 🎯 Evaluation Criteria
+### Failover Testing
 
-✅ **Working cluster with 3+ nodes**
-- 1 coordinator + 2 workers
-- All nodes healthy and accessible
+1. **Stop coordinator leader:**
+   ```bash
+   docker stop coordinator-2
+   ```
 
-✅ **Clear HA mechanism**
-- Patroni for automatic failover
-- HAProxy for load balancing
-- Etcd for cluster coordination
+2. **Verify automatic promotion:**
+   - Patroni promotes coordinator-1 to leader
+   - Python script continues working without changes
 
-✅ **Python script functionality**
-- Connects to cluster successfully
-- Inserts and queries distributed data
-- Handles failures gracefully
+![cluster-failover](./screenshots/failover.png)
 
-✅ **Architecture explanation**
-- Clear understanding of components
-- Proper reasoning for design choices
-- Knowledge of HA mechanisms
 
-✅ **Monitoring and logging**
-- Health check implementation
-- Log analysis capabilities
-- Performance monitoring
+## Monitoring
 
-## 🚀 Next Steps
+### Prometheus
 
-1. **Production Deployment**
-   - Use Kubernetes for orchestration
-   - Implement persistent storage
-   - Add monitoring with Prometheus/Grafana
+**Access:** http://localhost:9090
 
-2. **Advanced Features**
-   - Implement backup and restore
-   - Add SSL/TLS encryption
-   - Configure connection pooling
+**Key query:**
+```promql
+up{job=~"patroni_.*|postgres_exporter_.*"}
+```
+- `0` = node down
+- `1` = node up
 
-3. **Performance Optimization**
-   - Tune PostgreSQL parameters
-   - Optimize query distribution
-   - Implement caching strategies
+![prometheus-query](/screenshots/prometheus-query.png)
 
----
+**alerts:**
+because we stoped the container of coordinator-2, we should see an alert in the alerts tab
 
-**Note**: This setup is designed for development and testing. For production use, consider additional security measures, proper backup strategies, and monitoring solutions.
+![alerts](./screenshots/alerts.png)
+
+### AlertManager
+
+**Access:** http://localhost:9093
+
+![alert](./screenshots/alerts.png)
+
+
+## Slack
+we aleady integrated prometheus alertmanager with slack, and the alert should fired at slack channel
+![slack](./screenshots/slack.png)
+
+### Grafana
+
+**Access:** http://localhost:3000
+
+**Credentials:**
+- Username: `admin`
+- Password: `admin`
+
+**Features:**
+- PostgreSQL performance dashboards
+- Cluster health visualization
+- Real-time metrics
+
+![grafana-dashboard](./screenshots/grafana.png)
+
+## Cleanup
+
+```bash
+docker-compose down -v
+```
+
+## Key Benefits
+
+- **Zero-downtime failover** with Patroni automation
+- **Transparent load balancing** via HAProxy
+- **Proactive monitoring** with Prometheus/Grafana
+- **Instant alerting** for critical issues
+- **Production-ready** high availability setup

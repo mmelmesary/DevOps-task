@@ -1,3 +1,0 @@
-SELECT * FROM citus_version();
-SELECT * FROM citus_add_node('worker1', 5432);
-SELECT * FROM citus_get_active_worker_nodes();"

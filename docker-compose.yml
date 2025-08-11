@@ -1,97 +1,243 @@
-version: '3.8'
+version: '3.9'
 
 services:
+  # ---- ETCD ----
   etcd:
-    image: bitnami/etcd:latest
-    container_name: citus-etcd
-    environment:
-      - ALLOW_NONE_AUTHENTICATION=yes
-      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
-      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+    image: quay.io/coreos/etcd:v3.4.33
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=etcd0=http://etcd:2380
+      - --initial-cluster-token=etcd-cluster
+      - --initial-cluster-state=new
     ports:
-      - "2379:2379"
-      - "2380:2380"
+      - 2379:2379
+      - 2380:2380
     networks:
-      - citus-network
+      - citusnet
 
-  coordinator:
+  # ---- COORDINATOR GROUP ----
+  coordinator-1:
     build: .
-    container_name: citus-coordinator
-    environment:
-      - POSTGRES_DB=citus
-      - POSTGRES_USER=citus
-      - POSTGRES_PASSWORD=citus123
-      - PATRONI_NAME=coordinator
-      - PATRONI_SCOPE=citus
-      - PATRONI_ETCD_HOSTS=etcd:2379
-    ports:
-      - "5432:5432"
+    container_name: coordinator-1
     volumes:
-      - coordinator_data:/var/lib/postgresql/data
-      - ./patroni.yml:/etc/patroni.yml:ro
+      - ./patroni/coordinator-1.yml:/etc/patroni.yml
+      - pgdata_coordinator_1:/var/lib/postgresql/data
+    depends_on:
+     - etcd
+    networks:
+      - citusnet
+    ports:
+      - "5432:5432" 
+
+  coordinator-2:
+    build: .
+    container_name: coordinator-2
+    volumes:
+      - ./patroni/coordinator-2.yml:/etc/patroni.yml
+      - pgdata_coordinator_2:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" 
     depends_on:
       - etcd
     networks:
-      - citus-network
+      - citusnet
 
-  worker1:
+
+  # ---- WORKER GROUP 1 ----
+  worker1-1:
     build: .
-    container_name: citus-worker1
-    environment:
-      - POSTGRES_DB=citus
-      - POSTGRES_USER=citus
-      - POSTGRES_PASSWORD=citus123
-      - PATRONI_NAME=worker1
-      - PATRONI_SCOPE=citus
-      - PATRONI_ETCD_HOSTS=etcd:2379
-    ports:
-      - "5433:5432"
+    container_name: worker1-1
     volumes:
-      - worker1_data:/var/lib/postgresql/data
-      - ./patroni.yml:/etc/patroni.yml:ro
+      - ./patroni/worker1-1.yml:/etc/patroni.yml
+      - pgdata_worker1_1:/var/lib/postgresql/data
+    networks:
+      - citusnet
     depends_on:
       - etcd
-    networks:
-      - citus-network
 
-  worker2:
+  worker1-2:
     build: .
-    container_name: citus-worker2
-    environment:
-      - POSTGRES_DB=citus
-      - POSTGRES_USER=citus
-      - POSTGRES_PASSWORD=citus123
-      - PATRONI_NAME=worker2
-      - PATRONI_SCOPE=citus
-      - PATRONI_ETCD_HOSTS=etcd:2379
-    ports:
-      - "5434:5432"
+    container_name: worker1-2
     volumes:
-      - worker2_data:/var/lib/postgresql/data
-      - ./patroni.yml:/etc/patroni.yml:ro
+      - ./patroni/worker1-2.yml:/etc/patroni.yml
+      - pgdata_worker1_2:/var/lib/postgresql/data
+    networks:
+      - citusnet
     depends_on:
       - etcd
-    networks:
-      - citus-network
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: citus-pgadmin
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@citus.com
-      - PGADMIN_DEFAULT_PASSWORD=admin123
-    ports:
-      - "8080:80"
+  # ---- WORKER GROUP 2 ----
+  worker2-1:
+    build: .
+    container_name: worker2-1
+    volumes:
+      - ./patroni/worker2-1.yml:/etc/patroni.yml
+      - pgdata_worker2_1:/var/lib/postgresql/data
+    networks:
+      - citusnet
     depends_on:
-      - coordinator
-    networks:
-      - citus-network
+      - etcd
 
-volumes:
-  coordinator_data:
-  worker1_data:
-  worker2_data:
+  worker2-2:
+    build: .
+    container_name: worker2-2
+    volumes:
+      - ./patroni/worker2-2.yml:/etc/patroni.yml
+      - pgdata_worker2_2:/var/lib/postgresql/data
+    networks:
+      - citusnet
+    depends_on:
+      - etcd
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: citus-pgadmin
+  #   environment:
+  #     - PGADMIN_DEFAULT_EMAIL=admin@citus.com
+  #     - PGADMIN_DEFAULT_PASSWORD=admin123
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     - coordinator-1
+  #     - coordinator-2
+  #   networks:
+  #     - citusnet
+  #   volumes:
+  #     - ./servers.json:/pgadmin4/servers.json
+
+  postgres_exporter_coordinator_1:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_coordinator_1
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@coordinator-1:5432/postgres?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - citusnet
+    depends_on:
+      - coordinator-1
+
+  postgres_exporter_coordinator_2:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_coordinator_2
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@coordinator-2:5432/postgres?sslmode=disable"
+    ports:
+      - "9188:9187"
+    networks:
+      - citusnet
+    depends_on:
+      - coordinator-2
+
+  postgres_exporter_worker1_1:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_worker1_1
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@worker1-1:5432/postgres?sslmode=disable"
+    ports:
+      - "9189:9187"
+    networks:
+      - citusnet
+    depends_on:
+      - worker1-1
+
+  postgres_exporter_worker1_2:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_worker1_2
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@worker1-2:5432/postgres?sslmode=disable"
+    ports:
+      - "9190:9187"
+    networks:
+      - citusnet
+    depends_on:
+      - worker1-2
+
+  postgres_exporter_worker2_1:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_worker2_1
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@worker2-1:5432/postgres?sslmode=disable"
+    ports:
+      - "9191:9187"
+    networks:
+      - citusnet
+    depends_on:
+      - worker2-1
+
+  postgres_exporter_worker2_2:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_worker2_2
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@worker2-2:5432/postgres?sslmode=disable"
+    ports:
+      - "9192:9187"
+    networks:
+      - citusnet
+    depends_on:
+      - worker2-2
+    
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - citusnet
+    depends_on:
+      - postgres_exporter_coordinator_1 
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"  
+    networks:
+      - citusnet 
+    
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - citusnet
+    depends_on:
+      - prometheus
+  haproxy:
+    image: haproxy:2.4
+    container_name: haproxy
+    ports:
+      - "5000:5000"  # app connects here
+      - "7000:7000"  # HAProxy stats page
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - citusnet
+    depends_on:
+      - coordinator-1
+      - coordinator-2
 
 networks:
-  citus-network:
+  citusnet:
     driver: bridge
+
+volumes:
+  pgdata_coordinator_1:
+  pgdata_coordinator_2:
+  pgdata_worker1_1:
+  pgdata_worker1_2:
+  pgdata_worker2_1:
+  pgdata_worker2_2:
+  grafana-storage:

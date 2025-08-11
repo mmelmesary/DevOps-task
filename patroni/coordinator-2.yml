@@ -1,0 +1,32 @@
+scope: citus-ha
+name: coordinator-2
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: coordinator-2:8008
+
+etcd3:
+  hosts: etcd:2379
+
+citus:
+  group: 0
+  database: citus
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: coordinator-2:5432
+  data_dir: /var/lib/postgresql/data
+  authentication:
+    superuser:
+      username: postgres
+      password: postgres
+    replication:
+      username: replicator
+      password: replicatorpass
+  parameters:
+    shared_preload_libraries: citus
+    max_prepared_transactions: 200
+  pg_hba:
+    - local   all             all                                trust
+    - host    all             all            0.0.0.0/0           trust
+    - host    replication     replicator     0.0.0.0/0           trust
