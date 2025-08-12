@@ -1,6 +1,6 @@
 import time
 import psycopg2
-from psycopg2 import OperationalError, sql
+from psycopg2 import OperationalError
 
 DB_NAME = "citus"
 DB_USER = "postgres"
@@ -31,7 +31,6 @@ def connect_with_retry(dsn, retries=5, delay=3):
     return None
 
 def main():
-    # Build DSN dictionary from variables
     dsn = {
         "dbname": DB_NAME,
         "user": DB_USER,
@@ -51,25 +50,11 @@ def main():
 
         run_sql_file(cur, './sql/create_tables.sql')
         run_sql_file(cur, './sql/insert_data.sql')
+        run_sql_file(cur, './sql/queries.sql')
 
-        for attempt in range(retries):
-            try:
-                print("Querying data...")
-                cur.execute("SELECT id, name, email, age FROM test_users ORDER BY id LIMIT 10;")
-                rows = cur.fetchall()
-                for row in rows:
-                    print(row)
-                break
-            except (OperationalError, psycopg2.InterfaceError) as e:
-                print(f"Query failed: {e}")
-                if attempt < retries - 1:
-                    print(f"Retrying query in {delay} seconds...")
-                    time.sleep(delay)
-                    conn.close()
-                    conn = connect_with_retry(dsn, retries=retries, delay=delay)
-                    cur = conn.cursor()
-                else:
-                    raise
+        rows = cur.fetchall()
+        for row in rows:
+            print(row)
 
         cur.close()
 

@@ -1,1 +1,2 @@
-psycopg2-binary==2.9.7
+psycopg2-binary>=2.9
+patroni[etcd3]>=3.0
